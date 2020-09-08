@@ -1,0 +1,155 @@
+script in prompt:
+
+>>>import tensorflow as tf
+
+>>>mnist = tf.keras.datasets.mnist #加载keras数据
+
+>>>(x_train, y_train), (x_test, y_test) = mnist.load_data() #将返回四个数组
+
+>>>>>> x_train.shape
+(60000, 28, 28) #60000个图片用于训练，每个图片是28×28像素，每个像素的值为0～255
+
+>>> x_train.size
+47040000 #60000×28×28
+
+>>> x_train
+array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        ...,
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.]],
+
+       ...,
+
+       [[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        ...,
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.]]])
+
+>>> y_train
+array([5, 0, 4, ..., 5, 6, 8], dtype=uint8)
+
+>>> y_train.shape
+(60000,)
+
+>>> x_test.shape
+(10000, 28, 28)
+
+>>> y_test.shape
+(10000,)
+
+>>>x_train, x_test = x_train / 255.0, x_test / 255.0 #将像素值转化为0~1
+
+#Build the tf.keras.Sequential model by stacking layers. Choose an optimizer and loss function for training
+>>>model = tf.keras.models.Sequential([
+...  tf.keras.layers.Flatten(input_shape=(28, 28)),#将图像的格式从2d阵列（28×28像素）转换为28*28=784像素的1d阵列。该层没有要学习的参数; 它只重新格式化数据。
+...  tf.keras.layers.Dense(128, activation='relu'),#这一Dense层有128个节点（或神经元），激活函数为relu,表达式为f(x)=max(0,x)
+#神经网络结构的输出为所有输入的加权和，这导致整个神经网络是一个线性模型。如果将每一个神经元的输出通过一个非线性函数，那么整个神经网络的模型也就不再是线性的了，使得神经网络可以更好地解决较为复杂的问题。这个非线性函数也就是激活函数
+...  tf.keras.layers.Dropout(0.2),
+...  tf.keras.layers.Dense(10) #第二层（最后一层），返回10个输出值，对应图片的十个类别
+])
+
+>>> predictions = model(x_train[:1]).numpy() #用x_train中最后一个图片作为输入，得到的数组（此时model所有的值为默认值）
+
+>>> predictions
+array([[-0.6716149 ,  0.01609616,  0.01077467,  0.03884614,  0.22088847,
+        -0.15169466,  0.31900954, -1.0729533 ,  0.2198129 , -0.07782131]],
+      dtype=float32)
+
+
+>>>tf.nn.softmax(predictions).numpy() #The tf.nn.softmax function converts these logits to "probabilities" for each class
+array([[0.05336861, 0.10615855, 0.10559514, 0.10860134, 0.13028523,
+        0.08976032, 0.14371715, 0.0357262 , 0.13014516, 0.09664228]],
+      dtype=float32)
+
+>>>loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True) #损失函数，这可以衡量模型在训练过程中的准确程度。我们希望最小化此功能，以便在正确的方向上“引导”模型。
+#Use this crossentropy loss function when there are two or more label classes. We expect labels to be provided as integers. If you want to provide labels using one-hot representation, please use CategoricalCrossentropy loss
+#tf.keras.losses.SparseCategoricalCrossentropy(
+#    from_logits=False, reduction=losses_utils.ReductionV2.AUTO,
+#    name='sparse_categorical_crossentropy'
+#)
+#This loss is equal to the negative log probability of the true class: It is zero if the model is sure of the correct class.This untrained model gives probabilities close to random (1/10 for each class), so the initial loss should be close to -tf.log(1/10) ~= 2.3.
+
+>>> predictions
+array([[-0.6716149 ,  0.01609616,  0.01077467,  0.03884614,  0.22088847,
+        -0.15169466,  0.31900954, -1.0729533 ,  0.2198129 , -0.07782131]],
+      dtype=float32)
+>>> y_train[:1]
+array([5], dtype=uint8)
+>>> loss_fn(y_train[:1], predictions).numpy()
+2.4106123
+
+#编译模型
+>>> model.compile(optimizer='adam',#指定优化器
+...               loss=loss_fn,#指定损失函数
+...               metrics=['accuracy'])#度量标准 - 用于监控培训和测试步骤。以下示例使用精度，即正确分类的图像的分数
+
+#训练模型
+>>> model.fit(x_train, y_train, epochs=5)#将训练数据（输入和标签）提供给模型，训练结束后，模型学会了关联图像和标签
+Epoch 1/5
+1875/1875 [==============================] - 5s 2ms/step - loss: 0.2942 - accuracy: 0.9140
+Epoch 2/5
+1875/1875 [==============================] - 4s 2ms/step - loss: 0.1449 - accuracy: 0.9571
+Epoch 3/5
+1875/1875 [==============================] - 4s 2ms/step - loss: 0.1095 - accuracy: 0.9668
+Epoch 4/5
+1875/1875 [==============================] - 4s 2ms/step - loss: 0.0883 - accuracy: 0.9734
+Epoch 5/5
+1875/1875 [==============================] - 4s 2ms/step - loss: 0.0768 - accuracy: 0.9758
+<tensorflow.python.keras.callbacks.History object at 0x7fe96c3afa60>
+
+#检查model在test数据上的表现
+>>> model.evaluate(x_test,  y_test, verbose=2)
+313/313 - 1s - loss: 0.0789 - accuracy: 0.9751
+[0.07892012596130371, 0.9750999808311462]
+>>> test_loss, test_acc = model.evaluate(x_test,  y_test, verbose=2)
+313/313 - 1s - loss: 0.0789 - accuracy: 0.9751
+>>> test_loss
+0.07892012596130371
+>>> test_acc
+0.9750999808311462
+
+#If you want your model to return a probability, you can wrap the trained model, and attach the softmax to it:
+>>> probability_model = tf.keras.Sequential([
+...   model,
+...   tf.keras.layers.Softmax()
+... ])
+>>> probability_model(x_test[:5])
+<tf.Tensor: shape=(5, 10), dtype=float32, numpy=
+array([[1.3284320e-08, 1.5860532e-09, 1.7423434e-06, 1.6956848e-04,
+        1.1802732e-11, 1.6480286e-07, 3.9578675e-14, 9.9982750e-01,
+        2.6414455e-07, 6.7380819e-07],
+       [1.4221089e-06, 1.3543878e-05, 9.9994242e-01, 1.3173880e-05,
+        6.4987219e-13, 2.5289165e-08, 1.8188207e-07, 3.4429487e-14,
+        2.9223627e-05, 1.6359574e-13],
+       [7.9051262e-07, 9.9582267e-01, 4.6409637e-04, 1.4138666e-04,
+        4.3870401e-05, 6.2105893e-05, 6.7992110e-06, 1.0919073e-03,
+        2.3637232e-03, 2.7062420e-06],
+       [9.9928230e-01, 2.6967649e-08, 4.0413019e-05, 1.0804002e-06,
+        1.2612945e-06, 3.7854484e-06, 5.9288205e-04, 6.7112691e-05,
+        9.9695387e-07, 1.0183233e-05],
+       [3.1227892e-06, 5.3862736e-09, 5.2265063e-06, 6.5417559e-08,
+        9.9891865e-01, 3.5842803e-07, 1.3657680e-05, 2.8826362e-05,
+        3.3176707e-06, 1.0267090e-03]], dtype=float32)>
+
+>>> y_test[:5]
+array([7, 2, 1, 0, 4], dtype=uint8)#分别对应probability_model(x_test[:5])输出中的最大概率值的位置，9.9982750e-01,9.9994242e-01,9.9582267e-01,9.9928230e-01,9.9891865e-01
+
+>>> predictions = model.predict(x_test)
+>>> predictions[0]
+array([ -6.5200315,  -8.645369 ,  -1.6436286,   2.9343965, -13.54604  ,
+        -4.0018644, -19.243835 ,  11.616476 ,  -3.530118 ,  -2.593669 ],
+      dtype=float32)
+
+#另一种验证方式
+>>> import numpy
+>>> numpy.argmax(predictions[0])
+7
+>>> y_test[0]
+7
+
